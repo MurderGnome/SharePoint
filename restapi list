@@ -1,0 +1,23 @@
+These codes, `_x0028_AllTime_x0029_` and `_x0028_Last6Months_x0029_`, appear because the code is interacting with a **SharePoint REST API**.
+
+They are **URL-encoded or internal names** that SharePoint automatically creates when a column name contains **special characters** like parentheses **`()`** or **spaces**.
+
+Here's the breakdown:
+
+| Encoded String (SharePoint Internal Name) | Stands for (Human-Readable Character) | Reason |
+| :--- | :--- | :--- |
+| **`_x0028_`** | **`(`** (Left Parenthesis) | The hexadecimal ASCII code for `(` is 28. SharePoint uses `_x00**##**_` for encoding special characters. |
+| **`_x0029_`** | **`)`** (Right Parenthesis) | The hexadecimal ASCII code for `)` is 29. |
+
+***
+
+## How SharePoint Uses This
+
+When a user creates a column in a SharePoint list with a title like:
+
+| User Column Title | SharePoint Internal Name (Used in APIs) |
+| :--- | :--- |
+| **Total Points (All Time)** | `TotalPoints`**`_x0028_`**`AllTime`**`_x0029_`** |
+| **Total Points (Last 6 Months)** | `TotalPoints`**`_x0028_`**`Last6Months`**`_x0029_`** |
+
+SharePoint converts the parentheses to these encoded strings to ensure the column name is a valid variable name that can be safely used in database queries, APIs, and URLs. In your JavaScript code, you must use these **internal names** in the OData `$select` and `$orderby` clauses to successfully request data from the SharePoint list.
