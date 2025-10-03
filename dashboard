@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        .sp-cdn-tester {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #fff;
+        }
+
+        .sp-title {
+            text-align: center;
+            color: #0078d4;
+            font-size: 28px;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+
+        .cdn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .cdn-card {
+            background: #f3f2f1;
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 4px solid #666;
+            transition: all 0.3s;
+        }
+
+        .cdn-card.loading {
+            border-left-color: #fbc02d;
+            background: #fff9c4;
+        }
+
+        .cdn-card.success {
+            border-left-color: #4caf50;
+            background: #e8f5e9;
+        }
+
+        .cdn-card.failed {
+            border-left-color: #d32f2f;
+            background: #ffebee;
+        }
+
+        .cdn-name {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .cdn-url {
+            font-size: 11px;
+            color: #666;
+            word-break: break-all;
+            margin: 5px 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .cdn-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        .status-loading {
+            background: #fbc02d;
+            color: #000;
+        }
+
+        .status-success {
+            background: #4caf50;
+            color: white;
+        }
+
+        .status-failed {
+            background: #d32f2f;
+            color: white;
+        }
+
+        .test-button {
+            background: #0078d4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 20px auto;
+            display: block;
+            font-weight: bold;
+        }
+
+        .test-button:hover {
+            background: #106ebe;
+        }
+
+        .summary-box {
+            background: #e1f5fe;
+            border-left: 4px solid #00acc1;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .summary-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 10px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .working-list {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .working-item {
+            background: white;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .demo-section {
+            background: #f3f2f1;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .chart-container {
+            max-width: 600px;
+            margin: 20px auto;
+            height: 300px;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #0078d4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sp-cdn-tester">
+        <h1 class="sp-title">📦 SharePoint CDN Compatibility Tester</h1>
+
+        <div class="summary-box">
+            <h2 style="color: #00acc1; margin: 0 0 10px 0;">Test Summary</h2>
+            <p>Click the button below to test which CDNs work in your SharePoint environment.</p>
+            <button class="test-button" onclick="runAllTests()">🔍 Test All CDNs</button>
+            <div class="summary-stats" id="summaryStats"></div>
+        </div>
+
+        <h2 style="color: #0078d4; margin: 20px 0;">CDN Test Results</h2>
+        <div class="cdn-grid" id="cdnGrid"></div>
+
+        <div class="working-list" id="workingList" style="display: none;">
+            <h2 style="color: #4caf50; margin: 0 0 15px 0;">✅ Working CDNs (Copy & Use These!)</h2>
+            <div id="workingCDNs"></div>
+        </div>
+
+        <div class="demo-section" id="demoSection" style="display: none;">
+            <h2 style="color: #0078d4; margin: 0 0 15px 0;">🎨 Live Demo with Working Libraries</h2>
+            <div id="demoContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const cdnsToTest = [
+            // Chart.js
+            { name: 'Chart.js (cdnjs)', url: 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js', type: 'js', test: () => typeof Chart !== 'undefined' },
+            { name: 'Chart.js (unpkg)', url: 'https://unpkg.com/chart.js@4.4.0/dist/chart.umd.js', type: 'js', test: () => typeof Chart !== 'undefined' },
+            { name: 'Chart.js (jsdelivr)', url: 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js', type: 'js', test: () => typeof Chart !== 'undefined' },
+            
+            // GSAP
+            { name: 'GSAP (cdnjs)', url: 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js', type: 'js', test: () => typeof gsap !== 'undefined' },
+            { name: 'GSAP (unpkg)', url: 'https://unpkg.com/gsap@3.12.5/dist/gsap.min.js', type: 'js', test: () => typeof gsap !== 'undefined' },
+            
+            // Lodash
+            { name: 'Lodash (cdnjs)', url: 'https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js', type: 'js', test: () => typeof _ !== 'undefined' },
+            { name: 'Lodash (unpkg)', url: 'https://unpkg.com/lodash@4.17.21/lodash.min.js', type: 'js', test: () => typeof _ !== 'undefined' },
+            
+            // D3.js
+            { name: 'D3.js (cdnjs)', url: 'https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js', type: 'js', test: () => typeof d3 !== 'undefined' },
+            { name: 'D3.js (unpkg)', url: 'https://unpkg.com/d3@7.8.5/dist/d3.min.js', type: 'js', test: () => typeof d3 !== 'undefined' },
+            
+            // jQuery
+            { name: 'jQuery (cdnjs)', url: 'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js', type: 'js', test: () => typeof jQuery !== 'undefined' },
+            { name: 'jQuery (unpkg)', url: 'https://unpkg.com/jquery@3.7.1/dist/jquery.min.js', type: 'js', test: () => typeof jQuery !== 'undefined' },
+            { name: 'jQuery (Microsoft CDN)', url: 'https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.7.1.min.js', type: 'js', test: () => typeof jQuery !== 'undefined' },
+            
+            // AOS (Animate On Scroll)
+            { name: 'AOS CSS (unpkg)', url: 'https://unpkg.com/aos@2.3.4/dist/aos.css', type: 'css', test: () => document.querySelector('link[href*="aos"]') !== null },
+            { name: 'AOS JS (unpkg)', url: 'https://unpkg.com/aos@2.3.4/dist/aos.js', type: 'js', test: () => typeof AOS !== 'undefined' },
+            
+            // Bootstrap
+            { name: 'Bootstrap CSS (cdnjs)', url: 'https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css', type: 'css', test: () => document.querySelector('link[href*="bootstrap"]') !== null },
+            { name: 'Bootstrap JS (cdnjs)', url: 'https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js', type: 'js', test: () => typeof bootstrap !== 'undefined' },
+            
+            // Font Awesome
+            { name: 'Font Awesome (cdnjs)', url: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css', type: 'css', test: () => document.querySelector('link[href*="font-awesome"]') !== null },
+            
+            // Three.js
+            { name: 'Three.js (cdnjs)', url: 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', type: 'js', test: () => typeof THREE !== 'undefined' },
+            { name: 'Three.js (unpkg)', url: 'https://unpkg.com/three@0.128.0/build/three.min.js', type: 'js', test: () => typeof THREE !== 'undefined' },
+            
+            // Moment.js
+            { name: 'Moment.js (cdnjs)', url: 'https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js', type: 'js', test: () => typeof moment !== 'undefined' },
+            
+            // Axios
+            { name: 'Axios (cdnjs)', url: 'https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.5/axios.min.js', type: 'js', test: () => typeof axios !== 'undefined' }
+        ];
+
+        let testResults = [];
+        let workingCDNs = [];
+
+        function createCDNCard(cdn, index) {
+            return `
+                <div class="cdn-card loading" id="cdn-${index}">
+                    <div class="cdn-name">${cdn.name}</div>
+                    <div class="cdn-url">${cdn.url}</div>
+                    <div>
+                        <span class="cdn-status status-loading" id="status-${index}">
+                            <span class="loading-spinner"></span>Testing...
+                        </span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateCDNCard(index, success, message) {
+            const card = document.getElementById(`cdn-${index}`);
+            const status = document.getElementById(`status-${index}`);
+            
+            card.className = `cdn-card ${success ? 'success' : 'failed'}`;
+            status.className = `cdn-status ${success ? 'status-success' : 'status-failed'}`;
+            status.innerHTML = success ? '✅ Working!' : '❌ Failed';
+        }
+
+        function loadScript(url) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = url;
+                script.onload = () => resolve(true);
+                script.onerror = () => reject(false);
+                script.timeout = 5000;
+                document.head.appendChild(script);
+                
+                setTimeout(() => reject(false), 5000);
+            });
+        }
+
+        function loadCSS(url) {
+            return new Promise((resolve, reject) => {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = url;
+                link.onload = () => resolve(true);
+                link.onerror = () => reject(false);
+                document.head.appendChild(link);
+                
+                setTimeout(() => reject(false), 5000);
+            });
+        }
+
+        async function testCDN(cdn, index) {
+            try {
+                if (cdn.type === 'js') {
+                    await loadScript(cdn.url);
+                } else {
+                    await loadCSS(cdn.url);
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                const success = cdn.test();
+                updateCDNCard(index, success, success ? 'Loaded successfully' : 'Library not detected');
+                
+                if (success) {
+                    workingCDNs.push(cdn);
+                }
+                
+                return success;
+            } catch (error) {
+                updateCDNCard(index, false, 'Failed to load');
+                return false;
+            }
+        }
+
+        async function runAllTests() {
+            const grid = document.getElementById('cdnGrid');
+            grid.innerHTML = cdnsToTest.map((cdn, i) => createCDNCard(cdn, i)).join('');
+            
+            workingCDNs = [];
+            testResults = [];
+            
+            for (let i = 0; i < cdnsToTest.length; i++) {
+                const result = await testCDN(cdnsToTest[i], i);
+                testResults.push(result);
+                updateSummary();
+            }
+            
+            displayWorkingCDNs();
+            createDemo();
+        }
+
+        function updateSummary() {
+            const total = testResults.length;
+            const passed = testResults.filter(r => r).length;
+            const failed = total - passed;
+            const percentage = total > 0 ? Math.round((passed / total) * 100) : 0;
+            
+            document.getElementById('summaryStats').innerHTML = `
+                <div class="stat">
+                    <div class="stat-value" style="color: #0078d4;">${total}</div>
+                    <div class="stat-label">Total Tested</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" style="color: #4caf50;">${passed}</div>
+                    <div class="stat-label">Working</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" style="color: #d32f2f;">${failed}</div>
+                    <div class="stat-label">Failed</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" style="color: #00acc1;">${percentage}%</div>
+                    <div class="stat-label">Success Rate</div>
+                </div>
+            `;
+        }
+
+        function displayWorkingCDNs() {
+            if (workingCDNs.length === 0) return;
+            
+            const workingList = document.getElementById('workingList');
+            const workingCDNsDiv = document.getElementById('workingCDNs');
+            
+            workingList.style.display = 'block';
+            workingCDNsDiv.innerHTML = workingCDNs.map(cdn => {
+                const tag = cdn.type === 'js' 
+                    ? `&lt;script src="${cdn.url}"&gt;&lt;/script&gt;`
+                    : `&lt;link rel="stylesheet" href="${cdn.url}"&gt;`;
+                return `<div class="working-item">${tag}</div>`;
+            }).join('');
+        }
+
+        function createDemo() {
+            const hasChart = typeof Chart !== 'undefined';
+            const hasGSAP = typeof gsap !== 'undefined';
+            const hasLodash = typeof _ !== 'undefined';
+            
+            if (!hasChart && !hasGSAP && !hasLodash) return;
+            
+            document.getElementById('demoSection').style.display = 'block';
+            const demoContent = document.getElementById('demoContent');
+            
+            let html = '';
+            
+            if (hasChart) {
+                html += `
+                    <div style="margin: 20px 0;">
+                        <h3 style="color: #0078d4;">Chart.js Demo</h3>
+                        <div class="chart-container">
+                            <canvas id="demoChart"></canvas>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            if (hasGSAP) {
+                html += `
+                    <div style="margin: 20px 0;">
+                        <h3 style="color: #0078d4;">GSAP Animation Demo</h3>
+                        <button class="test-button" onclick="gsapDemo()" style="margin: 10px 0;">Animate!</button>
+                        <div id="gsapBox" style="width:100px;height:100px;background:#fbc02d;border-radius:8px;"></div>
+                    </div>
+                `;
+            }
+            
+            if (hasLodash) {
+                html += `
+                    <div style="margin: 20px 0;">
+                        <h3 style="color: #0078d4;">Lodash Demo</h3>
+                        <p>Sample array: [10, 5, 100, 2, 1000]</p>
+                        <p><strong>Max:</strong> ${_.max([10, 5, 100, 2, 1000])}</p>
+                        <p><strong>Min:</strong> ${_.min([10, 5, 100, 2, 1000])}</p>
+                        <p><strong>Mean:</strong> ${_.mean([10, 5, 100, 2, 1000])}</p>
+                    </div>
+                `;
+            }
+            
+            demoContent.innerHTML = html;
+            
+            if (hasChart) {
+                const ctx = document.getElementById('demoChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Red', 'Blue', 'Yellow', 'Green'],
+                        datasets: [{
+                            label: 'Votes',
+                            data: [12, 19, 8, 15],
+                            backgroundColor: ['#ff6384','#36a2eb','#ffce56','#4caf50']
+                        }]
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: true,
+                        plugins: { legend: { position: 'top' } }
+                    }
+                });
+            }
+        }
+
+        function gsapDemo() {
+            if (typeof gsap !== 'undefined') {
+                gsap.to('#gsapBox', { x: 200, rotation: 360, duration: 1.5, ease: 'power2.inOut' });
+            }
+        }
+
+        // Initialize
+        window.addEventListener('load', function() {
+            updateSummary();
+        });
+    </script>
+</body>
+</html>
