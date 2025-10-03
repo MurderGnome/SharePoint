@@ -1,0 +1,290 @@
+<div class="custom-student-leaderboard">
+  <h2 class="custom-leaderboard-title">Student Leaderboard</h2>
+  <button class="custom-discover-btn" onclick="discoverFields()">Step 1: Discover Field Names</button>
+  <button class="custom-refresh-btn" onclick="loadStudentData()" style="display:none;">Step 2: Load Data</button>
+  
+  <div class="custom-debug"></div>
+  
+  <table class="custom-leaderboard-table" style="display:none;">
+    <thead>
+      <tr>
+        <th>Rank</th>
+        <th>First Name</th>
+        <th>Last Name</th>
+        <th>Total Courses Completed</th>
+        <th>Total Points (All Time)</th>
+        <th>Total Points (Last 6 Months)</th>
+      </tr>
+    </thead>
+    <tbody class="custom-leaderboard-body">
+      <!-- Data will be populated here -->
+    </tbody>
+  </table>
+  <div class="custom-loading">Ready to discover fields...</div>
+</div>
+
+<style>
+.custom-student-leaderboard {
+  font-family: Arial, sans-serif;
+  max-width: 100%;
+  margin: 20px 0;
+}
+
+.custom-leaderboard-title {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.custom-discover-btn,
+.custom-refresh-btn {
+  background-color: #0078d4;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  margin-right: 10px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.custom-discover-btn:hover,
+.custom-refresh-btn:hover {
+  background-color: #005a9e;
+}
+
+.custom-debug {
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.custom-leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.custom-leaderboard-table th,
+.custom-leaderboard-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.custom-leaderboard-table th {
+  background-color: #0078d4;
+  color: white;
+  font-weight: bold;
+}
+
+.custom-leaderboard-table tr:hover {
+  background-color: #f5f5f5;
+}
+
+.custom-leaderboard-table tbody tr:nth-child(1) {
+  background-color: #fff9e6;
+  font-weight: bold;
+}
+
+.custom-loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-style: italic;
+}
+
+.field-highlight {
+  background-color: yellow;
+  font-weight: bold;
+  padding: 2px 4px;
+}
+</style>
+
+<script>
+let discoveredFields = {};
+
+function discoverFields() {
+  const debugDiv = document.querySelector('.custom-debug');
+  const loadingDiv = document.querySelector('.custom-loading');
+  const siteUrl = 'https://usaf.dps.mil/teams/SheppardU';
+  const listName = 'studentdata';
+  
+  loadingDiv.textContent = 'Discovering fields...';
+  debugDiv.innerHTML = '<strong>🔍 Discovering all available fields...</strong><br><br>';
+  
+  // Query WITHOUT $select to get ALL fields from first item
+  const endpoint = `${siteUrl}/_api/web/lists/GetByTitle('${listName}')/items?$top=1`;
+  
+  debugDiv.innerHTML += `<strong>Endpoint:</strong> ${endpoint}<br><br>`;
+  
+  fetch(endpoint, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json;odata=verbose',
+      'Content-Type': 'application/json;odata=verbose'
+    },
+    credentials: 'include'
+  })
+  .then(response => {
+    debugDiv.innerHTML += `<strong>Response:</strong> ${response.status} ${response.statusText}<br><br>`;
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.json();
+  })
+  .then(data => {
+    loadingDiv.textContent = 'Fields discovered! Check the list below.';
+    const items = data.d.results || [];
+    
+    if (items.length === 0) {
+      debugDiv.innerHTML += '<span style="color: red;">❌ No items found in the list. Add at least one item to discover field names.</span>';
+      return;
+    }
+    
+    const item = items[0];
+    debugDiv.innerHTML += '<strong>✅ SUCCESS! Here are ALL available fields:</strong><br><br>';
+    debugDiv.innerHTML += '<div style="background: white; padding: 10px; border: 1px solid #ccc;">';
+    
+    // Organize fields by type
+    const userFields = [];
+    const systemFields = [];
+    
+    Object.keys(item).forEach(key => {
+      const value = item[key];
+      const displayValue = value !== null && value !== undefined ? String(value).substring(0, 50) : '(empty)';
+      
+      if (key.startsWith('__') || key === 'MetaInfo' || key.endsWith('StringId')) {
+        systemFields.push({key, displayValue});
+      } else {
+        userFields.push({key, displayValue});
+        // Store for later use
+        discoveredFields[key] = value;
+      }
+    });
+    
+    debugDiv.innerHTML += '<strong style="color: green;">📋 YOUR CUSTOM FIELDS (use these!):</strong><br>';
+    userFields.forEach(({key, displayValue}) => {
+      const isTarget = key.includes('Rank') || key.includes('Name') || key.includes('Last') || 
+                       key.includes('Course') || key.includes('Point') || key.includes('Total');
+      if (isTarget) {
+        debugDiv.innerHTML += `<span class="field-highlight">${key}</span>: ${displayValue}<br>`;
+      } else {
+        debugDiv.innerHTML += `${key}: ${displayValue}<br>`;
+      }
+    });
+    
+    debugDiv.innerHTML += '<br><strong>🔧 System Fields (ignore these):</strong><br>';
+    systemFields.slice(0, 5).forEach(({key, displayValue}) => {
+      debugDiv.innerHTML += `<span style="color: #999;">${key}: ${displayValue}</span><br>`;
+    });
+    if (systemFields.length > 5) {
+      debugDiv.innerHTML += `<span style="color: #999;">...and ${systemFields.length - 5} more system fields</span><br>`;
+    }
+    
+    debugDiv.innerHTML += '</div><br>';
+    debugDiv.innerHTML += '<strong>📝 Next Step:</strong> Copy the <span class="field-highlight">highlighted field names</span> above and share them, or click "Step 2: Load Data" to try loading with discovered fields.<br>';
+    
+    // Show the load button
+    document.querySelector('.custom-refresh-btn').style.display = 'inline-block';
+  })
+  .catch(error => {
+    loadingDiv.textContent = 'Error during discovery';
+    debugDiv.innerHTML += `<br><span style="color: red; font-weight: bold;">❌ ERROR: ${error.message}</span><br><br>`;
+    debugDiv.innerHTML += '<strong>Troubleshooting:</strong><br>';
+    debugDiv.innerHTML += '1. Verify you can access: <a href="https://usaf.dps.mil/teams/SheppardU/Lists/studentdata/AllItems.aspx" target="_blank">List URL</a><br>';
+    debugDiv.innerHTML += '2. Check you are a member of "Sheppard U Members" or "Sheppard U Visitors"<br>';
+    debugDiv.innerHTML += '3. Try the list name without quotes or special characters<br>';
+    debugDiv.innerHTML += '4. Verify the list is not private/restricted<br>';
+    console.error('Discovery Error:', error);
+  });
+}
+
+function loadStudentData() {
+  const loadingDiv = document.querySelector('.custom-loading');
+  const tbody = document.querySelector('.custom-leaderboard-body');
+  const table = document.querySelector('.custom-leaderboard-table');
+  const debugDiv = document.querySelector('.custom-debug');
+  const siteUrl = 'https://usaf.dps.mil/teams/SheppardU';
+  const listName = 'studentdata';
+  
+  loadingDiv.textContent = 'Loading full data...';
+  tbody.innerHTML = '';
+  table.style.display = 'table';
+  
+  // Try to build query from discovered fields
+  const fieldNames = Object.keys(discoveredFields);
+  const relevantFields = fieldNames.filter(f => 
+    !f.startsWith('__') && !f.startsWith('ows') && f !== 'MetaInfo' && 
+    !f.endsWith('StringId') && f !== 'Id' && f !== 'ID' && f !== 'GUID'
+  );
+  
+  debugDiv.innerHTML += `<br><strong>🚀 Attempting to load with fields:</strong> ${relevantFields.join(', ')}<br><br>`;
+  
+  const odataQuery = relevantFields.length > 0 
+    ? `?$select=${relevantFields.join(',')}&$top=50` 
+    : '?$top=50';
+  
+  const endpoint = `${siteUrl}/_api/web/lists/GetByTitle('${listName}')/items${odataQuery}`;
+  
+  fetch(endpoint, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json;odata=verbose',
+      'Content-Type': 'application/json;odata=verbose'
+    },
+    credentials: 'include'
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.json();
+  })
+  .then(data => {
+    loadingDiv.style.display = 'none';
+    const items = data.d.results || [];
+    
+    debugDiv.innerHTML += `<strong>✅ Loaded ${items.length} records successfully!</strong><br>`;
+    
+    items.forEach((item, index) => {
+      const row = document.createElement('tr');
+      
+      // Try to find the right fields dynamically
+      const rank = item.Rank || item.rank || (index + 1);
+      const firstName = item.Name || item.FirstName || item.First_x0020_Name || '';
+      const lastName = item.LastName || item.Last_x0020_Name || '';
+      const courses = item.TotalCoursesCompleted || item.Total_x0020_Courses_x0020_Completed || 0;
+      const allTime = item.TotalPoints_x0028_AllTime_x0029_ || item.Total_x0020_Points_x0020__x0028_All_x0020_Time_x0029_ || 0;
+      const last6Mo = item.TotalPoints_x0028_Last6Months_x0029_ || item.Total_x0020_Points_x0020__x0028_Last_x0020_6_x0020_Months_x0029_ || 0;
+      
+      row.innerHTML = `
+        <td>${rank}</td>
+        <td>${firstName}</td>
+        <td>${lastName}</td>
+        <td>${courses}</td>
+        <td>${allTime}</td>
+        <td>${last6Mo}</td>
+      `;
+      tbody.appendChild(row);
+    });
+    
+    if (items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No data available</td></tr>';
+    }
+  })
+  .catch(error => {
+    loadingDiv.textContent = 'Error loading data';
+    debugDiv.innerHTML += `<span style="color: red;">❌ ${error.message}</span><br>`;
+    console.error('Load Error:', error);
+  });
+}
+</script>
